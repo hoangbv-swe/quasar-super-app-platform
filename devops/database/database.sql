@@ -1166,6 +1166,89 @@ CREATE TABLE `warranty_requests` (
   CONSTRAINT `fk_warranty_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `favorites` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_favorite_user_product` (`user_id`,`product_id`,`is_deleted`),
+  KEY `fav_user_fk` (`user_id`),
+  KEY `fav_product_fk` (`product_id`),
+  CONSTRAINT `fav_product_fk` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fav_user_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `social_posts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `content` text,
+  `media_type` enum('IMAGE','VIDEO') DEFAULT 'IMAGE',
+  `media_urls` json DEFAULT NULL,
+  `linked_product_id` int DEFAULT NULL,
+  `total_likes` int DEFAULT '0',
+  `total_comments` int DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('PENDING','APPROVED','REJECTED','HIDDEN') DEFAULT 'APPROVED' COMMENT 'Trạng thái kiểm duyệt (Mặc định cho duyệt trước, AI lọc sau)',
+  `total_shares` int DEFAULT '0' COMMENT 'Lượt chia sẻ để tính điểm Trending',
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_posts_user` (`user_id`),
+  KEY `fk_posts_pro` (`linked_product_id`),
+  CONSTRAINT `fk_posts_pro` FOREIGN KEY (`linked_product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_posts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_follows` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `follower_id` int NOT NULL,
+  `following_user_id` int DEFAULT NULL,
+  `following_shop_id` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_follow_user_del` (`follower_id`,`following_user_id`,`is_deleted`),
+  UNIQUE KEY `ux_follow_shop_del` (`follower_id`,`following_shop_id`,`is_deleted`),
+  KEY `fk_follow_dest_user` (`following_user_id`),
+  KEY `fk_follow_dest_shop` (`following_shop_id`),
+  CONSTRAINT `fk_follow_dest_shop` FOREIGN KEY (`following_shop_id`) REFERENCES `shops` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_follow_dest_user` FOREIGN KEY (`following_user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_follow_src` FOREIGN KEY (`follower_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `chk_follow_target` CHECK ((((`following_user_id` is not null) and (`following_shop_id` is null)) or ((`following_user_id` is null) and (`following_shop_id` is not null))))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_interactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  `post_id` bigint DEFAULT NULL,
+  `action_type` enum('VIEW','LIKE','UNLIKE','SHARE','CLICK','ADD_CART') NOT NULL COMMENT 'Bổ sung UNLIKE',
+  `duration_ms` int DEFAULT '0',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ip_address` varchar(50) DEFAULT NULL COMMENT 'Dùng để chặn Bot spam view',
+  `device_id` varchar(255) DEFAULT NULL COMMENT 'Định danh thiết bị cho Guest chưa login',
+  PRIMARY KEY (`id`,`created_at`),
+  KEY `idx_algo_score` (`user_id`,`product_id`,`action_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (((year(`created_at`) * 100) + month(`created_at`)))
+(PARTITION p202603 VALUES LESS THAN (202604) ENGINE = InnoDB,
+ PARTITION p202604 VALUES LESS THAN (202605) ENGINE = InnoDB,
+ PARTITION p202605 VALUES LESS THAN (202606) ENGINE = InnoDB,
+ PARTITION p_max VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
