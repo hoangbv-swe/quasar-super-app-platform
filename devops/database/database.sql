@@ -265,6 +265,84 @@ CREATE TABLE `shop_employees` (
   CONSTRAINT `fk_shop_emp_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `categories` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) DEFAULT NULL,
+  `parent_id` int DEFAULT NULL,
+  `path` varchar(255) DEFAULT NULL,
+  `level` int DEFAULT '1',
+  `slug` varchar(100) DEFAULT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
+  `display_order` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  `display_mode` varchar(50) DEFAULT NULL COMMENT 'Chế độ hiển thị (VD: GRID, LIST)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_category_parent_name` (`parent_id`,`name`),
+  UNIQUE KEY `ux_category_slug_deleted` (`slug`,`is_deleted`),
+  KEY `fk_categories_parent` (`parent_id`),
+  KEY `idx_categories_path` (`path`),
+  CONSTRAINT `fk_categories_parent` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `brands` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `icon_url` varchar(255) DEFAULT NULL,
+  `slug` varchar(100) DEFAULT NULL,
+  `description` text,
+  `tier` enum('PREMIUM','REGULAR','LOCAL') DEFAULT 'REGULAR' COMMENT 'Phân hạng thương hiệu',
+  `is_active` tinyint(1) DEFAULT '1',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_brands_slug_deleted` (`slug`,`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `options` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) NOT NULL COMMENT 'Color, Ram, Size',
+  `code` varchar(50) NOT NULL COMMENT 'Mã hệ thống không dấu (VD: COLOR, RAM)',
+  `type` enum('TEXT','COLOR_HEX','IMAGE') DEFAULT 'TEXT' COMMENT 'Cách FE render UI',
+  `is_active` tinyint(1) DEFAULT '1',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_options_code_deleted` (`code`,`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `option_values` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `option_id` int NOT NULL,
+  `value` varchar(50) NOT NULL COMMENT 'Red, Blue, 64GB',
+  `meta_data` varchar(255) DEFAULT NULL COMMENT 'Mã màu #HEX hoặc URL ảnh nếu cần',
+  `display_order` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  `is_deleted` bigint DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_opt_val_deleted` (`option_id`,`value`,`is_deleted`),
+  KEY `option_id` (`option_id`),
+  CONSTRAINT `fk_option_values_option` FOREIGN KEY (`option_id`) REFERENCES `options` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
