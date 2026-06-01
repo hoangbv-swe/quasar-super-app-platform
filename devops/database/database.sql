@@ -774,6 +774,85 @@ CREATE TABLE `order_histories` (
   CONSTRAINT `fk_histories_order_shop` FOREIGN KEY (`order_shop_id`) REFERENCES `orders_shop` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `transactions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_shop_id` int DEFAULT NULL,
+  `payment_method` varchar(50) NOT NULL,
+  `transaction_code` varchar(100) DEFAULT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `type` enum('PAYMENT','REFUND') DEFAULT 'PAYMENT',
+  `status` enum('PENDING','SUCCESS','FAILED','REFUNDED') DEFAULT 'PENDING',
+  `response_json` json DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `parent_transaction_id` int DEFAULT NULL COMMENT 'Dành cho trường hợp refund 1 phần của giao dịch gốc',
+  `gateway_code` varchar(50) DEFAULT NULL COMMENT 'Mã phản hồi từ cổng thanh toán (VD: 00 của VNPAY)',
+  `error_message` varchar(255) DEFAULT NULL COMMENT 'Thông báo lỗi hiển thị nhanh',
+  `version` int DEFAULT '0' COMMENT 'Optimistic Locking chống double-webhook',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_trans_code_method` (`transaction_code`,`payment_method`),
+  KEY `fk_transactions_order` (`order_id`),
+  KEY `fk_trans_order_shop` (`order_shop_id`),
+  CONSTRAINT `fk_trans_order_shop` FOREIGN KEY (`order_shop_id`) REFERENCES `orders_shop` (`id`),
+  CONSTRAINT `fk_transactions_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `wallets` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `balance` decimal(15,2) DEFAULT '0.00',
+  `frozen_balance` decimal(15,2) DEFAULT '0.00' COMMENT 'Tiền chờ đối soát',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `version` int DEFAULT '0' COMMENT 'Dùng cho Optimistic Locking JPA',
+  `status` enum('ACTIVE','LOCKED') DEFAULT 'ACTIVE' COMMENT 'LOCKED khi phát hiện gian lận (Fraud)',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_wallets_user` (`user_id`),
+  CONSTRAINT `fk_wallets_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `chk_wallet_balance_positive` CHECK ((`balance` >= 0)),
+  CONSTRAINT `chk_wallet_frozen_positive` CHECK ((`frozen_balance` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `wallet_transactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `wallet_id` int NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `type` varchar(50) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `ref_order_id` int DEFAULT NULL,
+  `reference_code` varchar(100) DEFAULT NULL COMMENT 'Khóa lũy đẳng chống nạp/trừ lặp',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `balance_before` decimal(15,2) NOT NULL DEFAULT '0.00' COMMENT 'Số dư trước giao dịch',
+  `balance_after` decimal(15,2) NOT NULL DEFAULT '0.00' COMMENT 'Số dư sau giao dịch',
+  `created_by` int DEFAULT NULL COMMENT 'User/Admin ID, NULL nếu là Hệ thống tự động',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_wallet_trans_ref` (`reference_code`),
+  KEY `fk_trans_wallet` (`wallet_id`),
+  CONSTRAINT `fk_trans_wallet` FOREIGN KEY (`wallet_id`) REFERENCES `wallets` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `withdrawal_requests` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `bank_name` varchar(100) DEFAULT NULL,
+  `bank_account` varchar(50) DEFAULT NULL,
+  `account_holder` varchar(100) DEFAULT NULL,
+  `status` enum('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `approved_by` int DEFAULT NULL COMMENT 'Admin/Kế toán duyệt lệnh',
+  `bank_transfer_ref` varchar(100) DEFAULT NULL COMMENT 'Mã giao dịch ngân hàng thực tế (UNC)',
+  `resolved_at` datetime DEFAULT NULL COMMENT 'Thời gian xử lý xong',
+  `admin_note` text COMMENT 'Lý do từ chối hoặc ghi chú của Kế toán',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_withdraw_user` (`user_id`),
+  CONSTRAINT `fk_withdraw_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
