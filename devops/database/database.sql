@@ -141,6 +141,86 @@ CREATE TABLE `social_accounts` (
   CONSTRAINT `social_accounts_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `provinces` (
+  `code` varchar(20) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `name_en` varchar(255) DEFAULT NULL,
+  `full_name` varchar(255) DEFAULT NULL,
+  `full_name_en` varchar(255) DEFAULT NULL,
+  `region` enum('NORTH','CENTRAL','SOUTH','UNKNOWN') DEFAULT 'UNKNOWN' COMMENT 'Vùng miền để tính phí và thời gian ship',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1: Hoạt động, 0: Vô hiệu hóa (do sáp nhập)',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `districts` (
+  `code` varchar(20) NOT NULL,
+  `province_code` varchar(20) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `name_en` varchar(255) DEFAULT NULL,
+  `full_name` varchar(255) DEFAULT NULL,
+  `full_name_en` varchar(255) DEFAULT NULL,
+  `type` enum('URBAN','RURAL','ISLAND','UNKNOWN') DEFAULT 'UNKNOWN' COMMENT 'Loại hình (Nội thành, Ngoại thành, Đảo)',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1: Hoạt động, 0: Vô hiệu hóa (do sáp nhập)',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`code`),
+  KEY `province_code` (`province_code`),
+  KEY `idx_districts_province_type` (`province_code`,`type`),
+  CONSTRAINT `districts_ibfk_1` FOREIGN KEY (`province_code`) REFERENCES `provinces` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `wards` (
+  `code` varchar(20) NOT NULL,
+  `district_code` varchar(20) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `name_en` varchar(255) DEFAULT NULL,
+  `full_name` varchar(255) DEFAULT NULL,
+  `full_name_en` varchar(255) DEFAULT NULL,
+  `delivery_status` enum('AVAILABLE','SUSPENDED','OUT_OF_ZONE') DEFAULT 'AVAILABLE' COMMENT 'Trạng thái giao hàng (bão lũ, dịch bệnh)',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1: Hoạt động, 0: Vô hiệu hóa (do sáp nhập)',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`code`),
+  KEY `district_code` (`district_code`),
+  KEY `idx_wards_district_status` (`district_code`,`delivery_status`),
+  CONSTRAINT `wards_ibfk_1` FOREIGN KEY (`district_code`) REFERENCES `districts` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_addresses` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `recipient_name` varchar(100) DEFAULT NULL,
+  `phone_number` varchar(15) DEFAULT NULL,
+  `address_detail` varchar(200) NOT NULL,
+  `province_code` varchar(20) DEFAULT NULL,
+  `district_code` varchar(20) DEFAULT NULL,
+  `ward_code` varchar(20) DEFAULT NULL,
+  `is_default` tinyint(1) DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `latitude` decimal(10,8) DEFAULT NULL,
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `address_type` enum('HOME','OFFICE') DEFAULT 'HOME',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '1: Khách đã xóa khỏi sổ địa chỉ',
+  PRIMARY KEY (`id`),
+  KEY `fk_addr_user` (`user_id`),
+  KEY `fk_addr_province` (`province_code`),
+  KEY `fk_addr_district` (`district_code`),
+  KEY `fk_addr_ward` (`ward_code`),
+  CONSTRAINT `fk_addr_district` FOREIGN KEY (`district_code`) REFERENCES `districts` (`code`),
+  CONSTRAINT `fk_addr_province` FOREIGN KEY (`province_code`) REFERENCES `provinces` (`code`),
+  CONSTRAINT `fk_addr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_addr_ward` FOREIGN KEY (`ward_code`) REFERENCES `wards` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
