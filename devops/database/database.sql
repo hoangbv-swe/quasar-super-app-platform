@@ -343,6 +343,131 @@ CREATE TABLE `option_values` (
   CONSTRAINT `fk_option_values_option` FOREIGN KEY (`option_id`) REFERENCES `options` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `products` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `shop_id` int DEFAULT '1',
+  `name` varchar(350) DEFAULT NULL,
+  `slug` varchar(350) DEFAULT NULL,
+  `price` decimal(15,2) DEFAULT NULL,
+  `thumbnail` varchar(255) DEFAULT NULL,
+  `description` longtext,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `category_id` int DEFAULT NULL,
+  `brand_id` int DEFAULT NULL,
+  `product_type` enum('OWN','CONSIGNED') DEFAULT 'OWN' COMMENT 'Nguồn gốc sản phẩm',
+  `warranty_period` int DEFAULT '12',
+  `quantity` int DEFAULT '0' COMMENT 'Tổng tồn kho tất cả biến thể',
+  `reserved_quantity` int DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `specs` json DEFAULT NULL COMMENT 'Thông số kỹ thuật chung: {"screen": "6.1 inch", "chip": "A17 Pro"}',
+  `is_imei_tracked` tinyint(1) DEFAULT '1' COMMENT '1: Quản lý IMEI, 0: Số lượng thường',
+  `meta_title` varchar(255) DEFAULT NULL,
+  `meta_description` text,
+  `is_featured` tinyint(1) DEFAULT '0',
+  `min_price` decimal(15,2) DEFAULT NULL,
+  `max_price` decimal(15,2) DEFAULT NULL,
+  `rating_avg` float DEFAULT '0',
+  `review_count` int DEFAULT '0',
+  `is_deleted` bigint DEFAULT '0',
+  `v_ram` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`specs`,_utf8mb4'$.ram'))) VIRTUAL,
+  `v_storage` varchar(50) GENERATED ALWAYS AS (json_unquote(json_extract(`specs`,_utf8mb4'$.storage'))) VIRTUAL,
+  `version` int DEFAULT '0' COMMENT 'Optimistic Locking cho tổng tồn kho',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1: Hoạt động, 0: Vô hiệu hóa',
+  `total_sold` int DEFAULT '0' COMMENT 'Phục vụ sort Best Seller',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_products_slug_deleted` (`slug`,`is_deleted`),
+  KEY `products_categories_fk` (`category_id`),
+  KEY `products_brands_fk` (`brand_id`),
+  KEY `idx_category_price` (`category_id`,`price`),
+  KEY `fk_products_shop` (`shop_id`),
+  KEY `idx_filter_products` (`category_id`,`brand_id`,`is_active`),
+  KEY `idx_prod_cat_brand_price` (`category_id`,`brand_id`,`price`),
+  KEY `idx_products_ram` (`v_ram`),
+  KEY `idx_products_storage` (`v_storage`),
+  FULLTEXT KEY `ft_product_name` (`name`),
+  CONSTRAINT `fk_products_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`),
+  CONSTRAINT `products_brands_fk` FOREIGN KEY (`brand_id`) REFERENCES `brands` (`id`),
+  CONSTRAINT `products_categories_fk` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`),
+  CONSTRAINT `chk_products_qty_positive` CHECK ((`quantity` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_images` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int DEFAULT NULL,
+  `image_url` varchar(300) DEFAULT NULL,
+  `display_order` int DEFAULT '0' COMMENT 'Thứ tự hiển thị trong slider',
+  `image_type` enum('GALLERY','SIZE_GUIDE','CERTIFICATE') DEFAULT 'GALLERY' COMMENT 'Phân loại ảnh',
+  `is_deleted` bigint DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_product_images_product_id` (`product_id`),
+  CONSTRAINT `fk_product_images_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_variants` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int NOT NULL,
+  `sku` varchar(100) DEFAULT NULL,
+  `price` decimal(15,2) DEFAULT NULL,
+  `original_price` decimal(15,2) DEFAULT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `quantity` int DEFAULT '0' COMMENT '[FIX] Tồn kho riêng cho từng biến thể',
+  `reserved_quantity` int DEFAULT '0',
+  `weight` decimal(10,2) DEFAULT '0.00' COMMENT 'Gram',
+  `dimensions` varchar(50) DEFAULT NULL COMMENT 'L x W x H',
+  `deleted_at` datetime DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `version` int DEFAULT '0' COMMENT 'Dùng cho Optimistic Locking JPA',
+  `attributes` json DEFAULT NULL COMMENT 'Phi chuẩn hóa để đọc siêu tốc. VD: {"Màu": "Đỏ", "Dung lượng": "256GB"}',
+  `name` varchar(255) GENERATED ALWAYS AS (json_unquote(json_extract(`attributes`,_utf8mb4'$.name'))) VIRTUAL COMMENT 'Tên biến thể sinh tự động',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '1: Đang kinh doanh, 0: Ngừng kinh doanh',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_variants_sku_deleted` (`sku`,`is_deleted`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_variants_stock` CHECK (((`quantity` >= 0) and (`reserved_quantity` >= 0) and (`quantity` >= `reserved_quantity`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `variant_values` (
+  `variant_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `option_id` int NOT NULL,
+  `option_value_id` int NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`variant_id`,`option_id`),
+  KEY `option_value_id` (`option_value_id`),
+  KEY `option_id` (`option_id`),
+  CONSTRAINT `variant_values_ibfk_1` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `variant_values_ibfk_2` FOREIGN KEY (`option_value_id`) REFERENCES `option_values` (`id`),
+  CONSTRAINT `variant_values_ibfk_3` FOREIGN KEY (`option_id`) REFERENCES `options` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `price_histories` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int NOT NULL,
+  `variant_id` int DEFAULT NULL,
+  `old_price` decimal(15,2) DEFAULT NULL,
+  `new_price` decimal(15,2) DEFAULT NULL,
+  `updated_by` int DEFAULT NULL COMMENT 'Admin nào sửa',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `reason` varchar(255) DEFAULT 'MANUAL_UPDATE' COMMENT 'Lý do đổi giá: MANUAL, FLASH_SALE, BATCH_SYNC',
+  `price_type` enum('SELLING_PRICE','ORIGINAL_PRICE') DEFAULT 'SELLING_PRICE' COMMENT 'Loại giá bị thay đổi',
+  PRIMARY KEY (`id`),
+  KEY `idx_ph_product_date` (`product_id`,`created_at`),
+  KEY `idx_ph_variant_date` (`variant_id`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
