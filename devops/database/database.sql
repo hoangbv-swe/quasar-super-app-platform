@@ -221,6 +221,50 @@ CREATE TABLE `user_addresses` (
   CONSTRAINT `fk_addr_ward` FOREIGN KEY (`ward_code`) REFERENCES `wards` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `shops` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `owner_id` int NOT NULL COMMENT 'Chủ shop (User ID)',
+  `name` varchar(255) NOT NULL,
+  `slug` varchar(255) DEFAULT NULL,
+  `logo_url` varchar(255) DEFAULT NULL,
+  `banner_url` varchar(255) DEFAULT NULL,
+  `description` text,
+  `commission_rate` decimal(5,2) DEFAULT '5.00' COMMENT 'Phí sàn thu %',
+  `status` enum('ACTIVE','BANNED','PENDING') DEFAULT 'ACTIVE',
+  `rating_avg` float DEFAULT '5',
+  `total_orders` int DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `version` int DEFAULT '0' COMMENT 'Optimistic Locking chống Race Condition khi update rating/orders',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_shops_slug_deleted` (`slug`,`is_deleted`),
+  KEY `fk_shops_users` (`owner_id`),
+  CONSTRAINT `fk_shops_users` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `shop_employees` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `shop_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `role` enum('MANAGER','SALES','WAREHOUSE') DEFAULT 'SALES',
+  `status` enum('ACTIVE','RESIGNED') DEFAULT 'ACTIVE',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_shop_emp_deleted` (`shop_id`,`user_id`,`is_deleted`),
+  KEY `fk_shop_emp_user` (`user_id`),
+  CONSTRAINT `fk_shop_emp_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`),
+  CONSTRAINT `fk_shop_emp_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
