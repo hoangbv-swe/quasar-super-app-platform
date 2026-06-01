@@ -853,6 +853,141 @@ CREATE TABLE `withdrawal_requests` (
   CONSTRAINT `fk_withdraw_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `banners` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) DEFAULT NULL,
+  `image_url` varchar(300) NOT NULL,
+  `target_url` varchar(300) DEFAULT NULL COMMENT 'Link click vào banner',
+  `position` varchar(50) DEFAULT 'HOME_MAIN' COMMENT 'Vị trí đặt banner',
+  `display_order` int DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  `start_time` datetime DEFAULT NULL COMMENT 'Cài đặt giờ tự động hiện',
+  `end_time` datetime DEFAULT NULL COMMENT 'Cài đặt giờ tự động ẩn',
+  `click_count` int DEFAULT '0' COMMENT 'Đo lường CTR (Click-through rate)',
+  `platform` enum('WEB','MOBILE','ALL') DEFAULT 'ALL' COMMENT 'Nền tảng hiển thị',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `flash_sales` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `start_time` datetime NOT NULL,
+  `end_time` datetime NOT NULL,
+  `status` enum('PENDING','ACTIVE','ENDED','CANCELLED') DEFAULT 'PENDING',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `shop_id` int DEFAULT NULL COMMENT 'NULL nếu là Flash Sale của sàn, có ID nếu của riêng Shop',
+  `cover_image` varchar(300) DEFAULT NULL COMMENT 'Ảnh banner của đợt Flash Sale',
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_flash_sales_shop` (`shop_id`),
+  CONSTRAINT `fk_flash_sales_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `flash_sale_items` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `flash_sale_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `promotional_price` decimal(15,2) NOT NULL,
+  `quantity_limit` int NOT NULL COMMENT 'Số lượng SP bán trong đợt sale',
+  `sold_count` int DEFAULT '0',
+  `version` int DEFAULT '0' COMMENT 'Chống bán âm kho khi traffic cao',
+  `variant_id` int DEFAULT NULL COMMENT 'Áp dụng cho biến thể cụ thể, nếu NULL là áp dụng cho toàn bộ SP',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_fs_item_prod_var` (`flash_sale_id`,`product_id`,`variant_id`,`is_deleted`),
+  KEY `fk_fs_items_fs` (`flash_sale_id`),
+  KEY `fk_fs_items_product` (`product_id`),
+  KEY `fk_fs_items_variant` (`variant_id`),
+  CONSTRAINT `fk_fs_items_fs` FOREIGN KEY (`flash_sale_id`) REFERENCES `flash_sales` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_fs_items_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_fs_items_variant` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `coupons` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `shop_id` int DEFAULT NULL,
+  `code` varchar(50) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `discount_type` varchar(50) NOT NULL DEFAULT 'FIXED_AMOUNT',
+  `discount_value` decimal(15,2) NOT NULL,
+  `max_discount_amount` decimal(15,2) DEFAULT NULL,
+  `min_order_amount` decimal(15,2) DEFAULT '0.00',
+  `start_date` datetime NOT NULL,
+  `end_date` datetime NOT NULL,
+  `usage_limit` int DEFAULT NULL,
+  `used_count` int DEFAULT '0' COMMENT 'Số lượt đã sử dụng thực tế',
+  `usage_per_user` int DEFAULT '1',
+  `is_active` tinyint(1) DEFAULT '1',
+  `deleted_at` datetime DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `version` int DEFAULT '0' COMMENT 'Chống Race Condition',
+  `total_budget` decimal(15,2) DEFAULT NULL COMMENT 'Ngân sách tối đa cho mã này',
+  `used_budget` decimal(15,2) DEFAULT '0.00' COMMENT 'Tổng tiền đã giảm thực tế',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_coupon_code_deleted` (`code`,`is_deleted`),
+  KEY `fk_coupons_shop` (`shop_id`),
+  CONSTRAINT `fk_coupons_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_budget_limit` CHECK (((`total_budget` is null) or (`used_budget` <= `total_budget`))),
+  CONSTRAINT `chk_coupon_limit` CHECK (((`usage_limit` is null) or (`used_count` <= `usage_limit`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `coupon_applicables` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `coupon_id` int NOT NULL,
+  `object_type` enum('CATEGORY','PRODUCT','BRAND') NOT NULL,
+  `object_id` int NOT NULL,
+  `applicable_type` enum('INCLUDE','EXCLUDE') DEFAULT 'INCLUDE' COMMENT 'Cho phép áp dụng hay Ngoại trừ',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_coupon_object_rule` (`coupon_id`,`object_type`,`object_id`,`applicable_type`),
+  KEY `coupon_id` (`coupon_id`),
+  CONSTRAINT `fk_coupon_applicables_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `coupon_usages` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `coupon_id` int NOT NULL,
+  `order_id` bigint NOT NULL,
+  `discount_amount` decimal(15,2) NOT NULL,
+  `used_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('APPLIED','REVERTED') DEFAULT 'APPLIED' COMMENT 'APPLIED: Áp dụng thành công, REVERTED: Hoàn lại do hủy đơn',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_coupon` (`user_id`,`coupon_id`),
+  KEY `fk_usage_coupon` (`coupon_id`),
+  KEY `fk_usage_order` (`order_id`),
+  CONSTRAINT `fk_usage_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`),
+  CONSTRAINT `fk_usage_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_usage_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
