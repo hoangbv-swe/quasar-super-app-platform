@@ -1249,6 +1249,86 @@ CREATE TABLE `user_interactions` (
  PARTITION p202605 VALUES LESS THAN (202606) ENGINE = InnoDB,
  PARTITION p_max VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
 
+CREATE TABLE `notifications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `body` text,
+  `type` enum('ORDER','SYSTEM','PROMOTION','CHAT') NOT NULL,
+  `reference_id` varchar(100) DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `image_url` varchar(300) DEFAULT NULL COMMENT 'Ảnh thumbnail của thông báo',
+  `deep_link` varchar(255) DEFAULT NULL COMMENT 'Link điều hướng khi click (App/Web)',
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_noti_user` (`user_id`),
+  CONSTRAINT `fk_noti_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `chat_rooms` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `type` enum('PRIVATE','GROUP','SUPPORT') DEFAULT 'PRIVATE',
+  `last_message` text,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `shop_id` int DEFAULT NULL COMMENT 'Gắn ID Shop vào để Vendor filter danh sách chat cực nhanh',
+  `is_deleted` bigint DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_chat_rooms_shop` (`shop_id`),
+  CONSTRAINT `fk_chat_rooms_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `chat_participants` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `room_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `role` enum('MEMBER','ADMIN') DEFAULT 'MEMBER',
+  `joined_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `last_read_message_id` bigint DEFAULT NULL COMMENT 'Mốc đánh dấu tin nhắn đã đọc để tính số tin chưa đọc',
+  `is_muted` tinyint(1) DEFAULT '0' COMMENT 'Tắt thông báo phòng chat',
+  `is_deleted` bigint DEFAULT '0' COMMENT 'Phục vụ tính năng Ẩn/Xóa đoạn chat',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_room_user_del` (`room_id`,`user_id`,`is_deleted`),
+  KEY `fk_chat_user` (`user_id`),
+  CONSTRAINT `fk_chat_room` FOREIGN KEY (`room_id`) REFERENCES `chat_rooms` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_chat_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `chat_messages` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `room_id` int NOT NULL,
+  `sender_id` int NOT NULL,
+  `content` text,
+  `type` enum('TEXT','IMAGE','VIDEO','PRODUCT','ORDER') DEFAULT 'TEXT',
+  `attachment_url` json DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT '0',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '1: Tin nhắn đã bị thu hồi',
+  `reply_to_id` bigint DEFAULT NULL COMMENT 'ID của tin nhắn được Quote/Reply',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`,`created_at`),
+  KEY `idx_msg_room` (`room_id`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (((year(`created_at`) * 100) + month(`created_at`)))
+(PARTITION p202603 VALUES LESS THAN (202604) ENGINE = InnoDB,
+ PARTITION p202604 VALUES LESS THAN (202605) ENGINE = InnoDB,
+ PARTITION p202605 VALUES LESS THAN (202606) ENGINE = InnoDB,
+ PARTITION p_max VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
