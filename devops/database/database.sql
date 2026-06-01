@@ -1053,6 +1053,119 @@ CREATE TABLE `affiliate_transactions` (
   CONSTRAINT `fk_aff_trans_order` FOREIGN KEY (`order_shop_id`) REFERENCES `orders_shop` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `product_reviews` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int DEFAULT NULL,
+  `order_detail_id` int NOT NULL COMMENT 'Chứng minh đã mua hàng',
+  `user_id` int DEFAULT NULL,
+  `parent_id` int DEFAULT NULL COMMENT 'ID của review gốc nếu đây là câu trả lời',
+  `content` text COMMENT 'Nội dung review cần dài hơn 255 ký tự',
+  `rating` tinyint DEFAULT '5',
+  `images` json DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT NULL,
+  `status` enum('PENDING','APPROVED','REJECTED','HIDDEN') DEFAULT 'APPROVED' COMMENT 'Mặc định hiện, bị report thì chuyển HIDDEN',
+  `helpful_count` int DEFAULT '0' COMMENT 'Số lượt người khác đánh giá review này hữu ích',
+  `is_deleted` bigint DEFAULT '0',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_review_order_detail_del` (`order_detail_id`,`is_deleted`),
+  KEY `reviews_product_fk` (`product_id`),
+  KEY `reviews_user_fk` (`user_id`),
+  KEY `fk_product_reviews_parent` (`parent_id`),
+  CONSTRAINT `fk_product_reviews_parent` FOREIGN KEY (`parent_id`) REFERENCES `product_reviews` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_reviews_order_detail` FOREIGN KEY (`order_detail_id`) REFERENCES `order_details` (`id`),
+  CONSTRAINT `reviews_product_fk` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_review_replies` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `review_id` int NOT NULL COMMENT 'Trả lời cho đánh giá nào',
+  `shop_id` int NOT NULL,
+  `vendor_user_id` int NOT NULL COMMENT 'Nhân viên nào của shop gõ câu trả lời',
+  `content` text NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_reply_review` (`review_id`) COMMENT 'Mỗi review khách viết, shop chỉ được trả lời 1 lần',
+  KEY `fk_reply_shop` (`shop_id`),
+  KEY `fk_reply_vendor_user` (`vendor_user_id`),
+  CONSTRAINT `fk_reply_review` FOREIGN KEY (`review_id`) REFERENCES `product_reviews` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_reply_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_reply_vendor_user` FOREIGN KEY (`vendor_user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `shop_reviews` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `shop_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `order_shop_id` int NOT NULL,
+  `rating` tinyint DEFAULT '5',
+  `content` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('PENDING','APPROVED','REJECTED','HIDDEN') DEFAULT 'APPROVED',
+  `images` json DEFAULT NULL COMMENT 'Mảng URL ảnh/video review',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
+  `is_deleted` bigint DEFAULT '0',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_shop_review_order` (`user_id`,`order_shop_id`,`is_deleted`),
+  KEY `fk_shop_reviews_shop` (`shop_id`),
+  KEY `fk_shop_reviews_user` (`user_id`),
+  CONSTRAINT `fk_shop_reviews_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `shop_review_replies` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `review_id` bigint NOT NULL COMMENT 'Trả lời cho đánh giá Shop nào',
+  `vendor_user_id` int NOT NULL COMMENT 'Tài khoản nhân viên/chủ shop gõ câu trả lời',
+  `content` text NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_shop_reply_review` (`review_id`) COMMENT 'Mỗi review khách viết, shop chỉ trả lời 1 lần',
+  KEY `fk_shop_reply_vendor_user` (`vendor_user_id`),
+  CONSTRAINT `fk_shop_reply_review` FOREIGN KEY (`review_id`) REFERENCES `shop_reviews` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_shop_reply_vendor_user` FOREIGN KEY (`vendor_user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `warranty_requests` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `order_detail_id` int NOT NULL COMMENT 'Link chính xác tới cái máy đã mua',
+  `product_item_id` int DEFAULT NULL COMMENT 'IMEI của máy lỗi',
+  `request_type` enum('WARRANTY','RETURN','EXCHANGE') NOT NULL COMMENT 'Bảo hành, Trả hàng hay Đổi mới',
+  `status` enum('PENDING','RECEIVED','PROCESSING','COMPLETED','REJECTED') DEFAULT 'PENDING',
+  `reason` text COMMENT 'Lý do lỗi (Màn hình xanh, sạc không vào...)',
+  `images` json DEFAULT NULL COMMENT 'Ảnh chụp tình trạng máy',
+  `admin_note` text COMMENT 'Ghi chú của kỹ thuật viên',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `quantity` int DEFAULT '1' COMMENT 'Số lượng sản phẩm cần bảo hành/trả',
+  `request_code` varchar(50) NOT NULL COMMENT 'Mã phiếu công khai (VD: RMA-XYZ)',
+  `shop_id` int NOT NULL COMMENT 'Phiếu này thuộc về Shop nào xử lý',
+  `return_tracking_code` varchar(100) DEFAULT NULL COMMENT 'Mã vận đơn khách gửi hàng về Shop',
+  `refund_amount` decimal(15,2) DEFAULT '0.00' COMMENT 'Số tiền thực tế hoàn lại cho khách (nếu là RETURN)',
+  `is_deleted` bigint DEFAULT '0',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_warranty_request_code` (`request_code`,`is_deleted`),
+  KEY `fk_warranty_user` (`user_id`),
+  KEY `fk_warranty_detail` (`order_detail_id`),
+  KEY `fk_warranty_item` (`product_item_id`),
+  KEY `fk_warranty_shop` (`shop_id`),
+  CONSTRAINT `fk_warranty_detail` FOREIGN KEY (`order_detail_id`) REFERENCES `order_details` (`id`),
+  CONSTRAINT `fk_warranty_item` FOREIGN KEY (`product_item_id`) REFERENCES `product_items` (`id`),
+  CONSTRAINT `fk_warranty_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`),
+  CONSTRAINT `fk_warranty_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
