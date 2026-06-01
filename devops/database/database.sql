@@ -988,6 +988,71 @@ CREATE TABLE `coupon_usages` (
   CONSTRAINT `fk_usage_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `affiliate_links` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `code` varchar(50) NOT NULL,
+  `clicks` int DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `is_active` tinyint(1) DEFAULT '1' COMMENT 'Khóa link nếu phát hiện gian lận',
+  `commission_rate` decimal(5,2) DEFAULT NULL COMMENT 'Hoa hồng riêng cho link này (%). Null thì lấy mặc định của Shop/SP',
+  `orders_count` int DEFAULT '0' COMMENT 'Số đơn hàng thành công qua link',
+  `total_earnings` decimal(15,2) DEFAULT '0.00' COMMENT 'Tổng tiền hoa hồng kiếm được',
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_affiliate_code_del` (`code`,`is_deleted`),
+  KEY `fk_aff_user` (`user_id`),
+  KEY `fk_aff_pro` (`product_id`),
+  CONSTRAINT `fk_aff_pro` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_aff_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_showcase_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `is_hidden` tinyint(1) DEFAULT '0',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `display_order` int DEFAULT '0' COMMENT 'Thứ tự ưu tiên hiển thị trên Tủ đồ (Số nhỏ xếp trên)',
+  `affiliate_link_id` int DEFAULT NULL COMMENT 'Link tiếp thị tương ứng với món hàng này',
+  `is_deleted` bigint DEFAULT '0',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_showcase_del` (`user_id`,`product_id`,`is_deleted`),
+  KEY `fk_showcase_pro` (`product_id`),
+  KEY `fk_showcase_affiliate` (`affiliate_link_id`),
+  CONSTRAINT `fk_showcase_affiliate` FOREIGN KEY (`affiliate_link_id`) REFERENCES `affiliate_links` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_showcase_pro` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_showcase_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `affiliate_transactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `affiliate_link_id` int NOT NULL,
+  `order_shop_id` int NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `status` enum('PENDING','APPROVED','PAID','CANCELLED','REVERSED') DEFAULT 'PENDING',
+  `payout_date` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_aff_trans_link_order` (`affiliate_link_id`,`order_shop_id`) COMMENT '1 kiện hàng chỉ sinh ra 1 khoản hoa hồng cho 1 link, chống duplicate',
+  KEY `fk_aff_trans_link` (`affiliate_link_id`),
+  KEY `fk_aff_trans_order` (`order_shop_id`),
+  CONSTRAINT `fk_aff_trans_link` FOREIGN KEY (`affiliate_link_id`) REFERENCES `affiliate_links` (`id`),
+  CONSTRAINT `fk_aff_trans_order` FOREIGN KEY (`order_shop_id`) REFERENCES `orders_shop` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
