@@ -572,6 +572,46 @@ CREATE TABLE `inventory_transaction_details` (
   CONSTRAINT `fk_inv_detail_variant` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `carts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `session_id` varchar(100) DEFAULT NULL COMMENT 'Lưu Session ID cho khách chưa login',
+  `expires_at` datetime DEFAULT NULL,
+  `status` enum('ACTIVE','LOCKED') DEFAULT 'ACTIVE' COMMENT 'ACTIVE: Đang mua sắm, LOCKED: Đang chờ thanh toán',
+  `is_deleted` bigint DEFAULT '0',
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_carts_user_id_deleted` (`user_id`,`is_deleted`),
+  KEY `idx_session_id` (`session_id`),
+  KEY `idx_carts_expires` (`expires_at`),
+  CONSTRAINT `fk_carts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `cart_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `cart_id` int NOT NULL,
+  `product_id` int NOT NULL,
+  `variant_id` int DEFAULT NULL COMMENT '[NEW] Chọn biến thể trong giỏ',
+  `quantity` int DEFAULT '1',
+  `price_at_add` decimal(15,2) NOT NULL COMMENT 'Giá tại thời điểm bỏ vào giỏ, dùng để so sánh với giá hiện tại và cảnh báo user',
+  `is_selected` tinyint(1) DEFAULT '1' COMMENT 'Khách hàng có tick chọn để thanh toán không',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `affiliate_link_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_cart_product_variant` (`cart_id`,`product_id`,`variant_id`),
+  KEY `fk_cart_items_cart` (`cart_id`),
+  KEY `fk_cart_items_product` (`product_id`),
+  KEY `fk_cart_items_variant` (`variant_id`),
+  CONSTRAINT `fk_cart_items_cart` FOREIGN KEY (`cart_id`) REFERENCES `carts` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_cart_items_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_cart_items_variant` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
