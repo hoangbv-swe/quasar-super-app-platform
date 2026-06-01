@@ -468,6 +468,110 @@ CREATE TABLE `price_histories` (
   KEY `idx_ph_variant_date` (`variant_id`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `suppliers` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `shop_id` int NOT NULL DEFAULT '1',
+  `name` varchar(100) NOT NULL,
+  `contact_email` varchar(100) DEFAULT NULL,
+  `contact_phone` varchar(20) DEFAULT NULL,
+  `status` enum('ACTIVE','INACTIVE') DEFAULT 'ACTIVE',
+  `deleted_at` datetime DEFAULT NULL,
+  `tax_code` varchar(50) DEFAULT NULL COMMENT 'Mã số thuế để xuất hóa đơn VAT',
+  `address` varchar(255) DEFAULT NULL COMMENT 'Địa chỉ kinh doanh',
+  `total_debt` decimal(15,2) DEFAULT '0.00' COMMENT 'Công nợ hiện tại với NCC',
+  `is_deleted` bigint DEFAULT '0' COMMENT 'Epoch time khi xóa mềm',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_supplier_tax_shop` (`shop_id`,`tax_code`,`is_deleted`) COMMENT 'Một shop không được tạo 2 NCC trùng mã số thuế',
+  KEY `idx_sup_shop` (`shop_id`),
+  CONSTRAINT `fk_supplier_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `inventory_transactions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `shop_id` int NOT NULL,
+  `transaction_code` varchar(50) NOT NULL COMMENT 'Mã phiếu kho public (VD: PN-001, PX-002, PK-001)',
+  `type` enum('INBOUND','OUTBOUND','ADJUSTMENT','RETURN') NOT NULL COMMENT 'INBOUND: Nhập mới, OUTBOUND: Xuất bán, ADJUSTMENT: Điều chỉnh/Kiểm kê, RETURN: Khách trả hàng',
+  `reference_type` varchar(50) DEFAULT NULL COMMENT 'Nguồn gốc: ORDER, PURCHASE_ORDER, MANUAL...',
+  `reference_id` bigint DEFAULT NULL COMMENT 'ID của Order hoặc ID Phiếu nhập từ Supplier',
+  `note` text COMMENT 'Lý do nhập/xuất/điều chỉnh',
+  `created_by` int NOT NULL COMMENT 'Nhân viên/Admin tạo phiếu (User ID)',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('PENDING','COMPLETED','CANCELLED') DEFAULT 'COMPLETED' COMMENT 'Trạng thái xử lý phiếu',
+  `total_value` decimal(15,2) DEFAULT '0.00' COMMENT 'Tổng giá trị của giao dịch (để kế toán nhìn nhanh)',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_inv_trans_code` (`transaction_code`),
+  KEY `fk_inv_trans_shop` (`shop_id`),
+  KEY `fk_inv_trans_user` (`created_by`),
+  KEY `idx_inv_trans_type` (`type`,`created_at`),
+  CONSTRAINT `fk_inv_trans_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`),
+  CONSTRAINT `fk_inv_trans_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `product_items` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int NOT NULL,
+  `variant_id` int DEFAULT NULL COMMENT '[LINK] Liên kết với biến thể',
+  `supplier_id` int DEFAULT NULL,
+  `order_id` bigint DEFAULT NULL,
+  `imei_code` varchar(50) NOT NULL,
+  `inbound_price` decimal(15,2) DEFAULT NULL,
+  `status` enum('AVAILABLE','PENDING','SOLD','DEFECTIVE','WARRANTY','HOLD') DEFAULT 'AVAILABLE',
+  `attributes` json DEFAULT NULL COMMENT 'Optional: Thông số phụ',
+  `import_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `sold_date` datetime DEFAULT NULL,
+  `locked_until` datetime DEFAULT NULL COMMENT 'Thời gian hết hạn giữ hàng (Reservation)',
+  `is_deleted` bigint DEFAULT '0',
+  `deleted_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` int DEFAULT NULL,
+  `updated_by` int DEFAULT NULL,
+  `version` int DEFAULT '0' COMMENT 'Optimistic Locking chống bán trùng IMEI',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ux_items_imei_deleted` (`imei_code`,`is_deleted`),
+  KEY `idx_item_status` (`status`),
+  KEY `items_products_fk` (`product_id`),
+  KEY `items_variants_fk` (`variant_id`),
+  KEY `items_suppliers_fk` (`supplier_id`),
+  KEY `items_orders_fk` (`order_id`),
+  KEY `idx_imei_search` (`imei_code`),
+  KEY `idx_items_locked_until` (`locked_until`),
+  KEY `idx_pid_status` (`product_id`,`status`),
+  CONSTRAINT `items_orders_fk` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
+  CONSTRAINT `items_products_fk` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `items_suppliers_fk` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`),
+  CONSTRAINT `items_variants_fk` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `inventory_transaction_details` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `transaction_id` bigint NOT NULL,
+  `product_id` int NOT NULL,
+  `variant_id` int DEFAULT NULL COMMENT 'Sản phẩm có biến thể thì fill vào đây',
+  `product_item_id` int DEFAULT NULL COMMENT 'Nếu là SP quản lý theo IMEI (bán 1 chiếc cụ thể) thì map vào đây',
+  `quantity_changed` int NOT NULL COMMENT 'Số lượng thay đổi (+ là nhập, - là xuất)',
+  `stock_before` int NOT NULL COMMENT 'Tồn kho TRƯỚC khi giao dịch (Snapshot để đối soát)',
+  `stock_after` int NOT NULL COMMENT 'Tồn kho SAU khi giao dịch (Snapshot để đối soát)',
+  `unit_cost` decimal(15,2) DEFAULT '0.00' COMMENT 'Giá vốn của 1 đơn vị tại thời điểm tạo phiếu',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_inv_detail_trans` (`transaction_id`),
+  KEY `fk_inv_detail_product` (`product_id`),
+  KEY `fk_inv_detail_variant` (`variant_id`),
+  KEY `fk_inv_detail_item` (`product_item_id`),
+  CONSTRAINT `fk_inv_detail_item` FOREIGN KEY (`product_item_id`) REFERENCES `product_items` (`id`),
+  CONSTRAINT `fk_inv_detail_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_inv_detail_trans` FOREIGN KEY (`transaction_id`) REFERENCES `inventory_transactions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_inv_detail_variant` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- =========================================================================
 -- PHASE 2: DATA SEEDING (DML)
