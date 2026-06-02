@@ -24,6 +24,12 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+
 # -----------------------------------------------------------------------------------------------
 # 2. EXTERNAL SERVICES & CUSTOM APP PROPERTIES
 # -----------------------------------------------------------------------------------------------
@@ -31,6 +37,24 @@ jwt:
   secretKey: ${JWT_SECRET_PROD}
   expiration: 3600000
   expiration-refresh-token: 2592000000
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET_PROD}
+    region: ${AWS_S3_REGION_PROD}
+    access: ${AWS_ACCESS_KEY_PROD}
+    secret: ${AWS_SECRET_KEY_PROD}
+
+vnpay:
+  pay-url: "https://pay.vnpayment.vn/vpcpay.html"
+  return-url: ${VNPAY_RETURN_URL_PROD}
+  api-url: "https://pay.vnpayment.vn/merchant_webapi/api/transaction"
+  tmn-code: ${VNPAY_TMN_CODE_PROD}
+  secret-key: ${VNPAY_SECRET_KEY_PROD}
+
+sendgrid:
+  api-key: ${SENDGRID_API_KEY_PROD}
+  from-email: ${SENDGRID_FROM_EMAIL_PROD}
 
 # -----------------------------------------------------------------------------------------------
 # 3. OPERATIONAL LOGGING & MONITORING

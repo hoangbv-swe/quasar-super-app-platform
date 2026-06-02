@@ -18,6 +18,11 @@ spring:
     hibernate:
       ddl-auto: create-drop
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 # -----------------------------------------------------------------------------------------------
 # 2. EXTERNAL SERVICES & CUSTOM APP PROPERTIES
 # -----------------------------------------------------------------------------------------------
@@ -25,6 +30,24 @@ jwt:
   secretKey: ${JWT_SECRET_TEST}
   expiration: 3600000
   expiration-refresh-token: 2592000000
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET_TEST}
+    region: ${AWS_S3_REGION_TEST}
+    access: ${AWS_ACCESS_KEY_TEST}
+    secret: ${AWS_SECRET_KEY_TEST}
+
+vnpay:
+  pay-url: "http://dummy-vnpay-url"
+  return-url: "http://dummy-return-url"
+  api-url: "http://dummy-vnpay-api"
+  tmn-code: ${VNPAY_TMN_CODE_TEST}
+  secret-key: ${VNPAY_SECRET_KEY_TEST}
+
+sendgrid:
+  api-key: ${SENDGRID_API_KEY_TEST}
+  from-email: ${SENDGRID_FROM_EMAIL_TEST}
 
 # -----------------------------------------------------------------------------------------------
 # 3. LOGGING & DIAGNOSTICS

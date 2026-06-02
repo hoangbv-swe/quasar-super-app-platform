@@ -21,6 +21,11 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 # -----------------------------------------------------------------------------------------------
 # 2. EXTERNAL SERVICES & CUSTOM APP PROPERTIES
 # -----------------------------------------------------------------------------------------------
@@ -28,6 +33,24 @@ jwt:
   secretKey: ${JWT_SECRET_DEV}
   expiration: 3600000
   expiration-refresh-token: 2592000000
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET_DEV}
+    region: ${AWS_S3_REGION_DEV}
+    access: ${AWS_ACCESS_KEY_DEV}
+    secret: ${AWS_SECRET_KEY_DEV}
+
+vnpay:
+  pay-url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+  return-url: "http://localhost:4200/payments/payment-callback"
+  api-url: "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"
+  tmn-code: ${VNPAY_TMN_CODE_DEV}
+  secret-key: ${VNPAY_SECRET_KEY_DEV}
+
+sendgrid:
+  api-key: ${SENDGRID_API_KEY_DEV}
+  from-email: ${SENDGRID_FROM_EMAIL_DEV}
 
 # -----------------------------------------------------------------------------------------------
 # 3. LOGGING & DIAGNOSTICS
