@@ -1,0 +1,41 @@
+# ===============================================================================================
+# PRODUCTION PROFILE
+# File cấu hình dành riêng cho môi trường Production (Môi trường thực tế)
+# ===============================================================================================
+
+# -----------------------------------------------------------------------------------------------
+# 1. DATA PERSISTENCE, MESSAGING & IDENTITY
+# -----------------------------------------------------------------------------------------------
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE}
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+# -----------------------------------------------------------------------------------------------
+# 2. EXTERNAL SERVICES & CUSTOM APP PROPERTIES
+# -----------------------------------------------------------------------------------------------
+jwt:
+  secretKey: ${JWT_SECRET_PROD}
+  expiration: 3600000
+  expiration-refresh-token: 2592000000
+
+# -----------------------------------------------------------------------------------------------
+# 3. OPERATIONAL LOGGING & MONITORING
+# -----------------------------------------------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
