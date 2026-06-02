@@ -1,0 +1,82 @@
+{
+  "info": {
+    "_postman_id": "d11155f1-1ea2-4005-9052-2dce08ac0f4a",
+    "name": "core-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43478917"
+  },
+  "item": [
+    {
+      "name": "01. identity",
+      "item": []
+    },
+    {
+      "name": "02. location",
+      "item": []
+    },
+    {
+      "name": "03. vendor",
+      "item": []
+    },
+    {
+      "name": "04. catalog",
+      "item": []
+    },
+    {
+      "name": "05. inventory",
+      "item": []
+    },
+    {
+      "name": "06. sales",
+      "item": []
+    },
+    {
+      "name": "07. pos",
+      "item": []
+    },
+    {
+      "name": "08. payment",
+      "item": []
+    },
+    {
+      "name": "09. finance",
+      "item": []
+    },
+    {
+      "name": "10. marketing",
+      "item": []
+    },
+    {
+      "name": "11. affiliate",
+      "item": []
+    },
+    {
+      "name": "12. review",
+      "item": []
+    },
+    {
+      "name": "13. after_sales",
+      "item": []
+    },
+    {
+      "name": "14. social",
+      "item": []
+    },
+    {
+      "name": "15. community",
+      "item": []
+    },
+    {
+      "name": "16. chat",
+      "item": []
+    },
+    {
+      "name": "17. notification",
+      "item": []
+    },
+    {
+      "name": "18. e2e_flows",
+      "item": []
+    }
+  ]
+}
